@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Particle Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            color: #f0f0f0;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Background for the entire application */
+        #app-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: #1a1a1a;
+            background-image: url('image/sand1.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+        
+        /* Transparent overlay to make text more readable */
+        #app-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 1;
+        }
+
+        #app-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #p5-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .file-input-container {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        #file-input {
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            position: absolute;
+            z-index: -1;
+        }
+
+        .file-label {
+            cursor: pointer;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            background-color: #7d5dff;
+            color: white;
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 4px 15px rgba(125, 93, 255, 0.3);
+        }
+
+        .file-label:hover {
+            background-color: #6a4bbd;
+            transform: translateY(-2px);
+        }
+
+        .back-button {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            z-index: 100;
+            background-color: rgba(26, 26, 26, 0.8);
+            color: #f0f0f0;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        .back-button:hover {
+            background-color: rgba(26, 26, 26, 1);
+        }
+
+        .control-button {
+            position: absolute;
+            top: 1rem;
+            left: 10rem;
+            z-index: 100;
+            background-color: rgba(26, 26, 26, 0.8);
+            color: #f0f0f0;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        .control-button:hover {
+            background-color: rgba(26, 26, 26, 1);
+        }
+        
+        .music-button {
+            position: absolute;
+            top: 1rem;
+            left: 20rem;
+            z-index: 100;
+            background-color: rgba(26, 26, 26, 0.8);
+            color: #f0f0f0;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        .music-button:hover {
+            background-color: rgba(26, 26, 26, 1);
+        }
+        
+        .music-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .music-controls input {
+            padding: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            outline: none;
+            width: 250px;
+        }
+        
+        .music-controls button {
+            background-color: #7d5dff;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        
+        .music-controls button:hover {
+            background-color: #6a4bbd;
+            transform: translateY(-2px);
+        }
+
+        #gallery-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            padding: 2rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        
+        .sketch-card {
+            position: relative;
+            background-color: rgba(42, 42, 42, 0.8);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .sketch-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+            background-color: rgba(42, 42, 42, 1);
+        }
+        
+        .image-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+
+        .sketch-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .card-content {
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .title {
+            font-weight: 600;
+            font-size: 1.125rem;
+            color: #f0f0f0;
+            transition: color 0.2s;
+            outline: none;
+            border: 2px solid transparent;
+            border-radius: 5px;
+            padding: 2px;
+        }
+
+        .title:focus {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 2px solid #7d5dff;
+        }
+
+        .card-actions {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .sketch-card:hover .card-actions {
+            opacity: 1;
+        }
+
+        .card-actions button {
+            background-color: rgba(42, 42, 42, 0.8);
+            color: white;
+            border: none;
+            border-radius: 9999px;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s, transform 0.2s;
+            z-index: 10;
+        }
+
+        .card-actions .edit-btn:hover {
+            background-color: #7d5dff;
+            transform: scale(1.1);
+        }
+        
+        .card-actions .delete-btn:hover {
+            background-color: #ef4444;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container" class="bg-gray-900 text-gray-100">
+        <div id="app-content">
+            <!-- Gallery View -->
+            <div id="gallery-view" class="flex flex-col h-full hidden">
+                <header class="p-6 flex flex-col items-center justify-center shadow-md bg-[#2a2a2a] bg-opacity-80">
+                    <h1 class="text-3xl font-bold text-gray-100 text-center">Interactive Particle Gallery</h1>
+                    <p class="text-sm text-gray-400 mt-1 text-center">
+                        Upload an image and see it come to life.
+                    </p>
+                    <div class="flex flex-row items-center space-x-4 mt-6">
+                        <div class="music-controls">
+                            <button id="set-music-button">Set Music</button>
+                            <input type="text" id="music-url-input" placeholder="Paste music URL here">
+                        </div>
+                        <label for="file-input" class="file-label">Upload Image</label>
+                        <input type="file" id="file-input" accept="image/*">
+                    </div>
+                </header>
+                <div id="gallery-container">
+                    <!-- Image cards will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Sketch View -->
+            <div id="sketch-view" class="flex-1 flex flex-col items-center justify-center p-4 relative hidden">
+                <button id="back-button" class="back-button">← Back to Gallery</button>
+                <button id="toggle-rotation-button" class="control-button">Pause Rotation</button>
+                <button id="music-button" class="music-button">Play Music</button>
+                <div id="p5-container" class="w-full h-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const galleryView = document.getElementById('gallery-view');
+        const sketchView = document.getElementById('sketch-view');
+        const fileInput = document.getElementById('file-input');
+        const backButton = document.getElementById('back-button');
+        const galleryContainer = document.getElementById('gallery-container');
+        const p5Container = document.getElementById('p5-container');
+        const toggleRotationButton = document.getElementById('toggle-rotation-button');
+        const musicButton = document.getElementById('music-button');
+        const musicUrlInput = document.getElementById('music-url-input');
+        const setMusicButton = document.getElementById('set-music-button');
+        
+        let musicUrl = localStorage.getItem('particleMusicUrl') || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+        let musicAudio = new Audio(musicUrl);
+        musicAudio.loop = true;
+        
+        // Add error handling to the audio element to prevent uncaught promise rejections
+        musicAudio.onerror = (e) => {
+            console.error('Audio playback error:', e);
+            musicButton.textContent = 'Play Music';
+            // Optionally, alert the user about the error
+            alert('Failed to load music from the provided URL. Please try a different one.');
+        };
+        
+        let particlesData = [];
+        let scene, camera, renderer;
+        let points, dustPoints;
+        let imageMesh;
+        let group;
+        let mouse = new THREE.Vector2();
+        let mouseMovedRecently = false;
+        let mouseMoveTimeout = 0;
+        const MOUSE_MOVE_DURATION = 10;
+        const mouseInteractionRadius = 100;
+        const mousePushStrength = 50;
+        const maxDeviation = 50;
+        const springStrength = 0.02; // Slower particle movement
+        const damping = 0.95; // More damping for smoother movement
+        const randomForce = 0.1; // Reduced random force for less erratic movement
+        let isAutoRotating = true;
+
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        const rotationSpeed = 0.002; // Slower rotation speed
+        let rotationState = 'horizontal';
+        let rotationSequenceTimer = 0;
+        const rotationDuration = 5000;
+
+
+        // Function to resize an image and return its base64 data URL
+        const resizeImage = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const MAX_HEIGHT = 800;
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        resolve(resizedDataUrl);
+                    };
+                    img.onerror = error => reject(error);
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        const saveImageToGallery = (imageData) => {
+            const gallery = JSON.parse(localStorage.getItem('particleGallery') || '[]');
+            const newImage = {
+                id: Date.now(),
+                data: imageData,
+                title: 'New Image'
+            };
+            gallery.push(newImage);
+            localStorage.setItem('particleGallery', JSON.stringify(gallery));
+            renderGallery();
+        };
+
+        const renderGallery = () => {
+            showView('gallery-view');
+            const gallery = JSON.parse(localStorage.getItem('particleGallery') || '[]');
+            galleryContainer.innerHTML = '';
+            
+            if (gallery.length === 0) {
+                galleryContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">No images found. Upload one to get started!</p>';
+            } else {
+                gallery.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'sketch-card flex flex-col';
+                    card.innerHTML = `
+                        <div class="image-container">
+                            <img src="${item.data}" alt="${item.title}" data-id="${item.id}">
+                        </div>
+                        <div class="card-content">
+                            <span contenteditable="false" class="title block" data-id="${item.id}" data-type="title">${item.title}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button class="edit-btn" data-id="${item.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                            </button>
+                            <button class="delete-btn" data-id="${item.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    galleryContainer.appendChild(card);
+                });
+            }
+        };
+
+        const showView = (viewId) => {
+            galleryView.classList.add('hidden');
+            sketchView.classList.add('hidden');
+            document.getElementById(viewId).classList.remove('hidden');
+        };
+
+        const renderSketch = (imageData) => {
+            showView('sketch-view');
+            rotationState = 'horizontal';
+            rotationSequenceTimer = 0;
+            
+            // Clear previous canvas
+            while (p5Container.firstChild) {
+                p5Container.removeChild(p5Container.firstChild);
+            }
+
+            // Load the image and create the 3D scene
+            const image = new Image();
+            image.src = imageData;
+            image.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                ctx.drawImage(image, 0, 0);
+                const imageDataPixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                create3DParticles(imageDataPixels, image);
+                
+                // Set up mouse events for interaction
+                const container = document.getElementById('sketch-view');
+                container.addEventListener('mousemove', onMouseMove, false);
+                container.addEventListener('touchstart', onTouchStart, false);
+                container.addEventListener('touchmove', onTouchMove, false);
+                container.addEventListener('touchend', onTouchEnd, false);
+                container.addEventListener('mousedown', onMouseDown, false);
+                container.addEventListener('mouseup', onMouseUp, false);
+            };
+        };
+
+        const create3DParticles = (imageData, image) => {
+            particlesData = [];
+            const positions = [];
+            const colors = [];
+
+            const particleDensityStep = 11;
+
+            const scale = 200;
+
+            for (let y = 0; y < imageData.height; y += particleDensityStep) {
+                for (let x = 0; x < imageData.width; x += particleDensityStep) {
+                    const index = (x + y * imageData.width) * 4;
+                    const r = imageData.data[index];
+                    const g = imageData.data[index + 1];
+                    const b = imageData.data[index + 2];
+                    const a = imageData.data[index + 3];
+
+                    if (r + g + b < 10) continue;
+
+                    const originalX = (x - imageData.width / 2) * scale / imageData.width;
+                    const originalY = -(y - imageData.height / 2) * scale / imageData.height;
+                    const originalZ = 0;
+
+                    positions.push(originalX, originalY, originalZ);
+                    colors.push(r / 255, g / 255, b / 255);
+
+                    particlesData.push({
+                        origin: new THREE.Vector3(originalX, originalY, originalZ),
+                        position: new THREE.Vector3(originalX, originalY, originalZ),
+                        velocity: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(randomForce)
+                    });
+                }
+            }
+            
+            // Three.js setup
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 250;
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x0a0a0a, 1);
+            p5Container.appendChild(renderer.domElement);
+
+            // Create a group to hold both the image and the particles
+            group = new THREE.Group();
+            scene.add(group);
+
+            // Add the image plane
+            const texture = new THREE.TextureLoader().load(image.src);
+            const planeGeometry = new THREE.PlaneGeometry(scale, scale * (image.height / image.width));
+            const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.9 });
+            imageMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+            group.add(imageMesh);
+            
+            // Add the particle system
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 2,
+                vertexColors: true,
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            points = new THREE.Points(geometry, material);
+            group.add(points);
+
+            // Add cosmic dust background
+            const dustGeometry = new THREE.BufferGeometry();
+            const dustPositions = [];
+            for (let i = 0; i < 5000; i++) {
+                const x = (Math.random() - 0.5) * 1000;
+                const y = (Math.random() - 0.5) * 1000;
+                const z = (Math.random() - 0.5) * 1000;
+                dustPositions.push(x, y, z);
+            }
+            dustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(dustPositions, 3));
+            const dustMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1,
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: 0.5
+            });
+            dustPoints = new THREE.Points(dustGeometry, dustMaterial);
+            scene.add(dustPoints);
+
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+        };
+
+        const onWindowResize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+
+            if (mouseMoveTimeout > 0) {
+                mouseMoveTimeout--;
+            } else {
+                mouseMovedRecently = false;
+            }
+
+            const positions = points.geometry.attributes.position.array;
+            
+            for (let i = 0; i < particlesData.length; i++) {
+                const p = particlesData[i];
+                const dx = p.origin.x - p.position.x;
+                const dy = p.origin.y - p.position.y;
+                const dz = p.origin.z - p.position.z;
+                const distFromOrigin = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                p.velocity.x += dx * springStrength;
+                p.velocity.y += dy * springStrength;
+                p.velocity.z += dz * springStrength;
+                p.velocity.x += (Math.random() - 0.5) * randomForce;
+                p.velocity.y += (Math.random() - 0.5) * randomForce;
+                p.velocity.z += (Math.random() - 0.5) * randomForce;
+
+                if (mouseMovedRecently) {
+                    const distToMouse = p.position.distanceTo(new THREE.Vector3(mouse.x, mouse.y, 0));
+                    if (distToMouse < mouseInteractionRadius) {
+                        const direction = p.position.clone().sub(new THREE.Vector3(mouse.x, mouse.y, 0)).normalize();
+                        const force = (1 - distToMouse / mouseInteractionRadius) * mousePushStrength;
+                        p.velocity.add(direction.multiplyScalar(force));
+                    }
+                }
+
+                p.velocity.multiplyScalar(damping);
+                p.position.add(p.velocity);
+
+                if (distFromOrigin > maxDeviation) {
+                    p.position.copy(p.origin).add(p.position.clone().sub(p.origin).normalize().multiplyScalar(maxDeviation));
+                    p.velocity.multiplyScalar(-0.8);
+                }
+
+                positions[i * 3] = p.position.x;
+                positions[i * 3 + 1] = p.position.y;
+                positions[i * 3 + 2] = p.position.z;
+            }
+
+            points.geometry.attributes.position.needsUpdate = true;
+            
+            if (isAutoRotating && !isDragging) {
+                if (rotationState === 'horizontal') {
+                    group.rotation.y += rotationSpeed;
+                    rotationSequenceTimer += 16;
+                    if (rotationSequenceTimer >= rotationDuration) {
+                        rotationState = 'vertical';
+                        rotationSequenceTimer = 0;
+                    }
+                } else if (rotationState === 'vertical') {
+                    group.rotation.x += rotationSpeed;
+                    rotationSequenceTimer += 16;
+                    if (rotationSequenceTimer >= rotationDuration) {
+                        rotationState = 'horizontal';
+                        rotationSequenceTimer = 0;
+                    }
+                }
+            }
+            
+            renderer.render(scene, camera);
+        };
+        
+        const onMouseMove = (event) => {
+            if (isDragging) {
+                const deltaX = event.clientX - previousMousePosition.x;
+                const deltaY = event.clientY - previousMousePosition.y;
+                group.rotation.y += deltaX * rotationSpeed;
+                group.rotation.x += deltaY * rotationSpeed;
+                previousMousePosition.x = event.clientX;
+                previousMousePosition.y = event.clientY;
+            }
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            mouseMovedRecently = true;
+            mouseMoveTimeout = MOUSE_MOVE_DURATION;
+        };
+
+        const onMouseDown = (event) => {
+            isDragging = true;
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+        };
+
+        const onTouchMove = (event) => {
+            event.preventDefault();
+            mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+            mouseMovedRecently = true;
+            mouseMoveTimeout = MOUSE_MOVE_DURATION;
+        };
+
+        const onTouchStart = (event) => {
+            if (event.touches.length > 0) {
+                mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+                mouseMovedRecently = true;
+                mouseMoveTimeout = MOUSE_MOVE_DURATION;
+            }
+        };
+        
+        const onTouchEnd = () => {};
+
+        toggleRotationButton.addEventListener('click', () => {
+            isAutoRotating = !isAutoRotating;
+            if (isAutoRotating) {
+                toggleRotationButton.textContent = 'Pause Rotation';
+            } else {
+                toggleRotationButton.textContent = 'Resume Rotation';
+            }
+        });
+        
+        musicButton.addEventListener('click', () => {
+            if (musicAudio.paused) {
+                musicAudio.play().catch(error => {
+                    // AbortError is handled gracefully here.
+                    if (error.name !== 'AbortError') {
+                        console.error('Error playing music:', error);
+                        alert('Failed to play music. The URL may be invalid.');
+                    }
+                });
+                musicButton.textContent = 'Pause Music';
+            } else {
+                musicAudio.pause();
+                musicButton.textContent = 'Play Music';
+            }
+        });
+        
+        const loadMusic = (url) => {
+            const tempAudio = new Audio();
+            tempAudio.addEventListener('canplaythrough', () => {
+                try {
+                    localStorage.setItem('particleMusicUrl', url);
+                    musicAudio.src = url;
+                    musicUrl = url;
+                    alert('Music updated successfully!');
+                } catch (e) {
+                    if (e.name === 'QuotaExceededError') {
+                        alert('File too large! Your browser has a small storage limit for local files. Please use a music URL instead of uploading the file.');
+                    } else {
+                        console.error('Error uploading music file:', e);
+                        alert('An error occurred while uploading the music file.');
+                    }
+                }
+            }, { once: true });
+            tempAudio.onerror = () => {
+                alert('Failed to load music. Please ensure the URL is correct or the file is supported.');
+            };
+            tempAudio.src = url;
+        };
+
+        setMusicButton.addEventListener('click', () => {
+            const newUrl = musicUrlInput.value.trim();
+            if (newUrl) {
+                loadMusic(newUrl);
+            } else {
+                alert('Please enter a valid URL.');
+            }
+        });
+        
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                resizeImage(file).then(imageData => {
+                    saveImageToGallery(imageData);
+                }).catch(error => {
+                    console.error("Error processing image:", error);
+                    alert("Failed to process image. Please try a different file.");
+                });
+            }
+        });
+
+        const saveTitle = (id, newTitle) => {
+            const gallery = JSON.parse(localStorage.getItem('particleGallery') || '[]');
+            const imageItem = gallery.find(item => item.id == id);
+            if (imageItem) {
+                imageItem.title = newTitle;
+                localStorage.setItem('particleGallery', JSON.stringify(gallery));
+            }
+        };
+
+        galleryContainer.addEventListener('click', (event) => {
+            const card = event.target.closest('.sketch-card');
+            if (!card) return;
+
+            const isDeleteBtn = event.target.closest('.delete-btn');
+            const isEditBtn = event.target.closest('.edit-btn');
+            const imgElement = card.querySelector('img');
+
+            if (isDeleteBtn) {
+                const idToDelete = imgElement.dataset.id;
+                const gallery = JSON.parse(localStorage.getItem('particleGallery') || '[]');
+                const updatedGallery = gallery.filter(item => item.id != idToDelete);
+                localStorage.setItem('particleGallery', JSON.stringify(updatedGallery));
+                renderGallery();
+            } else if (isEditBtn) {
+                const titleElement = card.querySelector('.title');
+                const titleText = titleElement.textContent;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = titleText;
+                input.className = 'title-input-edit';
+                input.dataset.id = titleElement.dataset.id;
+                titleElement.parentNode.replaceChild(input, titleElement);
+                input.focus();
+                
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.blur();
+                    }
+                });
+
+                input.addEventListener('blur', () => {
+                    const newTitle = input.value;
+                    saveTitle(input.dataset.id, newTitle);
+                    const newSpan = document.createElement('span');
+                    newSpan.contentEditable = 'false';
+                    newSpan.className = 'title block';
+                    newSpan.dataset.id = input.dataset.id;
+                    newSpan.dataset.type = 'title';
+                    newSpan.textContent = newTitle;
+                    input.parentNode.replaceChild(newSpan, input);
+                });
+            } else {
+                renderSketch(imgElement.src);
+            }
+        });
+        
+        backButton.addEventListener('click', () => {
+            isAutoRotating = false;
+            if (!musicAudio.paused) {
+                musicAudio.pause();
+                musicAudio.currentTime = 0;
+                musicButton.textContent = 'Play Music';
+            }
+            if (renderer) {
+                renderer.dispose();
+                while(p5Container.firstChild) {
+                    p5Container.removeChild(p5Container.firstChild);
+                }
+            }
+            renderGallery();
+        });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            renderGallery();
+        });
+    </script>
+</body>
+</html>
